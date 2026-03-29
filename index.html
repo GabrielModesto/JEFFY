@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Método Jeffy | Run-Walk-Run</title>
+    
+    <!-- PWA Meta -->
+    <link id="pwa-manifest" rel="manifest" href="">
+    <meta name="theme-color" content="#111827">
+    <link id="favicon" rel="icon" type="image/svg+xml" href="">
+    <link id="apple-icon" rel="apple-touch-icon" href="">
+    
+    <!-- Tailwind CSS (CDN para MVP, ideal precompilar en despliegue) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        run: '#22c55e', walk: '#3b82f6', dark: '#111827', card: '#1f2937'
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            -webkit-user-select: none; user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+        .view-transition { transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+        .view-hidden {
+            opacity: 0; transform: scale(0.95); pointer-events: none;
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; visibility: hidden;
+        }
+        .view-active {
+            opacity: 1; transform: scale(1); position: relative;
+            visibility: visible; min-height: 100vh;
+        }
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.2s linear;
+            transform: rotate(-90deg); transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="bg-dark text-white font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-card shadow-md py-4 px-6 flex justify-between items-center fixed top-0 w-full z-40">
+        <div class="flex items-center gap-2 text-xl font-bold">
+            <i data-lucide="activity" class="text-run"></i>
+            <span>Método <span class="text-run">Jeffy</span></span>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-fullscreen" class="p-2 rounded-full bg-gray-700 hover:bg-gray-600 active:scale-95 transition" title="Pantalla completa">
+                <i data-lucide="maximize" class="w-5 h-5"></i>
+            </button>
+            <button id="btn-nav-history" class="p-2 rounded-full bg-gray-700 hover:bg-gray-600 active:scale-95 transition">
+                <i data-lucide="history" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Modal Duración Personalizada -->
+    <div id="modal-custom-time" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-card w-full max-w-sm rounded-3xl p-6 shadow-2xl transform scale-95 transition-transform">
+            <h3 class="text-xl font-bold mb-2">Duración Personalizada</h3>
+            <p class="text-gray-400 text-sm mb-4">Ingresa el tiempo total en minutos:</p>
+            <input type="number" id="input-custom-time" class="w-full bg-gray-800 text-white text-2xl font-bold rounded-xl p-4 text-center mb-6 border-2 border-transparent focus:border-run focus:outline-none" placeholder="Ej. 25" min="1" max="180">
+            <div class="flex gap-3">
+                <button id="btn-cancel-custom" class="flex-1 py-3 rounded-full bg-gray-700 font-bold hover:bg-gray-600 transition">Cancelar</button>
+                <button id="btn-confirm-custom" class="flex-1 py-3 rounded-full bg-run font-bold text-white hover:bg-green-600 transition">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banner Instalación PWA -->
+    <div id="install-banner" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-run text-white p-4 rounded-2xl shadow-2xl z-50 flex justify-between items-center transition-transform">
+        <div class="flex items-center gap-3">
+            <i data-lucide="download" class="w-6 h-6"></i>
+            <div class="flex flex-col">
+                <span class="font-bold">Instalar App</span>
+                <span class="text-xs text-green-100">Acceso rápido y offline</span>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-install-app" class="bg-white text-run px-4 py-2 rounded-full font-bold text-sm hover:bg-gray-100 transition">Instalar</button>
+            <button id="btn-close-install" class="p-2 opacity-70 hover:opacity-100 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal -->
+    <main class="flex-1 pt-16 relative overflow-x-hidden">
+
+        <!-- VISTA 1: Nivel -->
+        <section id="view-level" class="view-transition view-active p-6 flex flex-col gap-6">
+            <div class="text-center mt-4">
+                <h1 class="text-2xl font-bold mb-2">Selecciona tu nivel</h1>
+                <p class="text-gray-400 text-sm">Elige el intervalo Run-Walk-Run que mejor se adapte a ti.</p>
+            </div>
+            <div class="flex flex-col gap-4">
+                <button class="level-btn bg-card border-2 border-transparent hover:border-run rounded-2xl p-5 text-left flex items-center justify-between transition active:scale-[0.98]" data-level="beginner">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">Principiante</h2>
+                        <div class="flex gap-3 text-sm font-medium">
+                            <span class="text-run flex items-center gap-1"><i data-lucide="person-standing" class="w-4 h-4"></i> 1m Correr</span>
+                            <span class="text-walk flex items-center gap-1"><i data-lucide="footprints" class="w-4 h-4"></i> 1m Caminar</span>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="text-gray-400"></i>
+                </button>
+                <button class="level-btn bg-card border-2 border-transparent hover:border-run rounded-2xl p-5 text-left flex items-center justify-between transition active:scale-[0.98]" data-level="intermediate">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">Intermedio</h2>
+                        <div class="flex gap-3 text-sm font-medium">
+                            <span class="text-run flex items-center gap-1"><i data-lucide="person-standing" class="w-4 h-4"></i> 3m Correr</span>
+                            <span class="text-walk flex items-center gap-1"><i data-lucide="footprints" class="w-4 h-4"></i> 1m Caminar</span>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="text-gray-400"></i>
+                </button>
+                <button class="level-btn bg-card border-2 border-transparent hover:border-run rounded-2xl p-5 text-left flex items-center justify-between transition active:scale-[0.98]" data-level="advanced">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">Avanzado</h2>
+                        <div class="flex gap-3 text-sm font-medium">
+                            <span class="text-run flex items-center gap-1"><i data-lucide="person-standing" class="w-4 h-4"></i> 5m Correr</span>
+                            <span class="text-walk flex items-center gap-1"><i data-lucide="footprints" class="w-4 h-4"></i> 30s Caminar</span>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="text-gray-400"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- VISTA 2: Duración -->
+        <section id="view-duration" class="view-transition view-hidden p-6 flex flex-col gap-6">
+            <button id="btn-back-level" class="text-gray-400 flex items-center gap-1 w-fit mt-2">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i> Volver
+            </button>
+            <div class="text-center">
+                <h1 class="text-2xl font-bold mb-2">Tiempo de Entrenamiento</h1>
+                <p class="text-gray-400 text-sm">¿Cuánto tiempo tienes hoy?</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <button class="duration-btn bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:bg-gray-700 transition active:scale-95" data-duration="10"><span class="text-3xl font-bold text-white">10</span><span class="text-gray-400 text-sm">minutos</span></button>
+                <button class="duration-btn bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:bg-gray-700 transition active:scale-95" data-duration="20"><span class="text-3xl font-bold text-white">20</span><span class="text-gray-400 text-sm">minutos</span></button>
+                <button class="duration-btn bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:bg-gray-700 transition active:scale-95" data-duration="30"><span class="text-3xl font-bold text-run">30</span><span class="text-gray-400 text-sm">minutos</span></button>
+                <button class="duration-btn bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:bg-gray-700 transition active:scale-95" data-duration="45"><span class="text-3xl font-bold text-white">45</span><span class="text-gray-400 text-sm">minutos</span></button>
+                <button class="duration-btn bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:bg-gray-700 transition active:scale-95" data-duration="60"><span class="text-3xl font-bold text-white">60</span><span class="text-gray-400 text-sm">minutos</span></button>
+                <button id="btn-custom-duration" class="bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-2 hover:bg-gray-700 transition active:scale-95">
+                    <i data-lucide="timer" class="w-8 h-8 text-white"></i><span class="text-gray-400 text-sm" id="label-custom-dur">Otro</span>
+                </button>
+            </div>
+            <button id="btn-start-training" class="mt-auto w-full bg-run hover:bg-green-600 text-white font-bold py-4 rounded-full text-lg shadow-lg active:scale-95 transition flex justify-center items-center gap-2">
+                <i data-lucide="play" class="w-6 h-6"></i> INICIAR ENTRENAMIENTO
+            </button>
+        </section>
+
+        <!-- VISTA 3: Timer -->
+        <section id="view-timer" class="view-transition view-hidden flex flex-col justify-between h-[calc(100vh-4rem)] p-6 pb-10">
+            <div class="flex justify-between items-center text-sm font-medium">
+                <div class="bg-card px-4 py-2 rounded-full flex gap-2">
+                    <span class="text-gray-400">Total:</span><span id="timer-total-elapsed" class="text-white">00:00</span>
+                    <span class="text-gray-400">/ <span id="timer-total-target">30:00</span></span>
+                </div>
+                <div class="bg-card px-4 py-2 rounded-full flex gap-2">
+                    <span class="text-gray-400">Ciclo:</span><span id="timer-cycle-count" class="text-white">1</span>
+                </div>
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center relative">
+                <div id="phase-indicator-bg" class="absolute w-72 h-72 rounded-full bg-run opacity-10 animate-pulse-slow"></div>
+                <svg class="w-72 h-72 absolute" viewBox="0 0 120 120">
+                    <circle class="text-gray-800" stroke-width="6" stroke="currentColor" fill="transparent" r="54" cx="60" cy="60" />
+                    <circle id="timer-svg-ring" class="text-run progress-ring__circle" stroke-width="6" stroke-linecap="round" stroke="currentColor" fill="transparent" r="54" cx="60" cy="60" stroke-dasharray="339.292" stroke-dashoffset="0" />
+                </svg>
+                <div class="relative z-10 flex flex-col items-center">
+                    <i id="phase-icon" data-lucide="person-standing" class="w-10 h-10 mb-2 text-run"></i>
+                    <h2 id="phase-text" class="text-3xl font-black uppercase tracking-widest text-run mb-1">CORRER</h2>
+                    <div id="timer-phase-time" class="text-6xl font-black tracking-tighter text-white">00:00</div>
+                </div>
+            </div>
+            <div class="text-center mt-6">
+                <p class="text-gray-400 text-sm mb-1">Tiempo restante total</p>
+                <div id="timer-remaining-time" class="text-4xl font-bold text-yellow-400">00:00</div>
+            </div>
+            <div class="flex justify-center items-center gap-6">
+                <button id="btn-stop-training" class="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg active:scale-90 transition">
+                    <i data-lucide="square" class="w-6 h-6 text-white fill-white"></i>
+                </button>
+                <button id="btn-pause-training" class="w-24 h-24 rounded-full bg-yellow-500 hover:bg-yellow-600 flex items-center justify-center shadow-lg active:scale-90 transition">
+                    <i id="pause-icon" data-lucide="pause" class="w-10 h-10 text-white fill-white"></i>
+                </button>
+                <button id="btn-timer-fullscreen" class="w-16 h-16 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center shadow-lg active:scale-90 transition" title="Pantalla completa">
+                    <i id="fullscreen-icon" data-lucide="maximize" class="w-6 h-6 text-white"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- VISTA 4: Summary -->
+        <section id="view-summary" class="view-transition view-hidden p-6 flex flex-col gap-6">
+            <div class="text-center mt-6">
+                <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/30">
+                    <i data-lucide="award" class="w-10 h-10 text-white"></i>
+                </div>
+                <h1 class="text-3xl font-black mb-2">¡Completado!</h1>
+                <p class="text-gray-400">Excelente trabajo en tu sesión Jeffy de hoy.</p>
+            </div>
+            <div class="bg-card rounded-3xl p-6 grid grid-cols-2 gap-6 mt-4">
+                <div class="flex flex-col"><span class="text-gray-400 text-sm mb-1">Total</span><span id="summary-total-time" class="text-2xl font-bold text-white">00:00</span></div>
+                <div class="flex flex-col"><span class="text-gray-400 text-sm mb-1">Ciclos</span><span id="summary-cycles" class="text-2xl font-bold text-white">0</span></div>
+                <div class="flex flex-col"><span class="text-gray-400 text-sm mb-1">Corriendo</span><span id="summary-run-time" class="text-2xl font-bold text-run">00:00</span></div>
+                <div class="flex flex-col"><span class="text-gray-400 text-sm mb-1">Caminando</span><span id="summary-walk-time" class="text-2xl font-bold text-walk">00:00</span></div>
+                <div class="flex flex-col col-span-2 items-center bg-gray-800 rounded-xl py-3">
+                    <span class="text-gray-400 text-sm mb-1">VO₂ Promedio Estimado</span>
+                    <div class="flex items-center gap-2"><i data-lucide="wind" class="w-5 h-5 text-blue-400"></i><span id="summary-vo2" class="text-3xl font-bold text-white">0.0 <span class="text-sm text-gray-400">ml/kg/min</span></span></div>
+                </div>
+                <div class="flex flex-col col-span-2 items-center bg-gray-800 rounded-xl py-3 mt-[-10px]">
+                    <span class="text-gray-400 text-sm mb-1">Calorías Estimadas</span>
+                    <div class="flex items-center gap-2"><i data-lucide="flame" class="w-5 h-5 text-orange-500"></i><span id="summary-calories" class="text-3xl font-bold text-white">0 <span class="text-sm text-gray-400">kcal</span></span></div>
+                </div>
+            </div>
+            <button id="btn-finish-home" class="mt-auto w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-full text-lg shadow-lg active:scale-95 transition">
+                Ir al Inicio
+            </button>
+        </section>
+
+        <!-- VISTA 5: History -->
+        <section id="view-history" class="view-transition view-hidden p-6 flex flex-col h-[calc(100vh-4rem)]">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-4">
+                    <button id="btn-back-home" class="p-2 rounded-full bg-gray-700 hover:bg-gray-600 active:scale-95 transition"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                    <h1 class="text-2xl font-bold">Historial</h1>
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-export-csv" class="p-2 rounded-full bg-blue-600 hover:bg-blue-500 active:scale-95 transition" title="Exportar CSV"><i data-lucide="download-cloud" class="w-5 h-5"></i></button>
+                    <button id="btn-delete-all" class="p-2 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 transition" title="Eliminar todo"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <div class="flex gap-4 mb-6">
+                <div class="flex-1 bg-card rounded-2xl p-4 text-center">
+                    <div class="text-3xl font-black text-white" id="stat-total-sessions">0</div>
+                    <div class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Sesiones</div>
+                </div>
+                <div class="flex-1 bg-card rounded-2xl p-4 text-center">
+                    <div class="text-3xl font-black text-white" id="stat-total-minutes">0</div>
+                    <div class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Minutos</div>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto pb-6 custom-scrollbar" id="history-list">
+                <!-- Data here -->
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /*******************************************************
+         * MÓDULO 1: Configuración de PWA Dinámica Mejorada
+         *******************************************************/
+        const pwaManager = {
+            deferredPrompt: null,
+            init() {
+                this.injectManifest();
+                this.registerServiceWorker();
+                this.setupInstallPrompt();
+            },
+            setupInstallPrompt() {
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    this.deferredPrompt = e;
+                    document.getElementById('install-banner').classList.remove('hidden');
+                });
+                document.getElementById('btn-install-app').addEventListener('click', async () => {
+                    if (this.deferredPrompt) {
+                        this.deferredPrompt.prompt();
+                        const { outcome } = await this.deferredPrompt.userChoice;
+                        if (outcome === 'accepted') document.getElementById('install-banner').classList.add('hidden');
+                        this.deferredPrompt = null;
+                    }
+                });
+                document.getElementById('btn-close-install').addEventListener('click', () => {
+                    document.getElementById('install-banner').classList.add('hidden');
+                });
+            },
+            injectManifest() {
+                const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22c55e"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.5"/></filter></defs><rect width="512" height="512" rx="115" fill="#1f2937"/><circle cx="256" cy="256" r="160" stroke="url(#g)" stroke-width="40" stroke-linecap="round" stroke-dasharray="320 182" fill="none" filter="url(#s)"/><path d="M220 170 h70 v140 c0 40 -50 50 -80 25 l-10 -10" stroke="white" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#s)"/></svg>`;
+                const iconUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
+                document.getElementById('favicon').href = iconUrl;
+                document.getElementById('apple-icon').href = iconUrl;
+
+                const manifest = {
+                    name: "Metodo Jeffy", 
+                    short_name: "Jeffy Run", 
+                    start_url: "./",
+                    display: "standalone", 
+                    orientation: "portrait",
+                    background_color: "#000000", 
+                    theme_color: "#22c55e",
+                    scope: "./",
+                    prefer_related_applications: false,
+                    icons: [
+                        { src: iconUrl, sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
+                        { src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+                    ],
+                    categories: ["health", "fitness", "sports"],
+                    description: "Aplicación de entrenamiento Run-Walk-Run basada en el Método Jeffy Galloway"
+                };
+                const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+                document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+            },
+            registerServiceWorker() {
+                if ('serviceWorker' in navigator) {
+                    const swCode = `
+                        const CACHE_NAME = 'jeffy-cache-v3-prod';
+                        const urlsToCache = ['./', './index.html'];
+                        
+                        self.addEventListener('install', e => {
+                            self.skipWaiting();
+                            e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(urlsToCache)));
+                        });
+                        self.addEventListener('activate', e => {
+                            e.waitUntil(caches.keys().then(keys => Promise.all(
+                                keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
+                            )));
+                            self.clients.claim();
+                        });
+                        self.addEventListener('fetch', e => {
+                            // Estrategia Network-First para navegación, Stale-While-Revalidate para CDNs
+                            const url = new URL(e.request.url);
+                            if (url.hostname === 'cdn.tailwindcss.com' || url.hostname === 'unpkg.com') {
+                                e.respondWith(caches.match(e.request).then(cached => {
+                                    const fetchPromise = fetch(e.request).then(networkRes => {
+                                        caches.open(CACHE_NAME).then(cache => cache.put(e.request, networkRes.clone()));
+                                        return networkRes;
+                                    }).catch(() => cached);
+                                    return cached || fetchPromise;
+                                }));
+                            } else {
+                                e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => new Response('Offline'))));
+                            }
+                        });
+                    `;
+                    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+                    navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+                        .catch(err => console.warn('SW Error:', err));
+                }
+            }
+        };
+
+        /*******************************************************
+         * MÓDULO 2: Almacenamiento Seguro Asíncrono (IndexedDB)
+         *******************************************************/
+        const storageManager = {
+            DB_NAME: 'JeffyDB',
+            STORE_NAME: 'sessions',
+            db: null,
+            
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.DB_NAME, 1);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                            db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
+                        }
+                    };
+                    request.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+                    request.onerror = (e) => { console.error("IndexedDB error", e); reject(e.target.error); };
+                });
+            },
+            async getSessions() {
+                return new Promise((resolve) => {
+                    if(!this.db) return resolve([]);
+                    const tx = this.db.transaction(this.STORE_NAME, 'readonly');
+                    const request = tx.objectStore(this.STORE_NAME).getAll();
+                    request.onsuccess = () => resolve(request.result.sort((a,b) => b.id - a.id));
+                });
+            },
+            async saveSession(sessionData) {
+                sessionData.id = Date.now();
+                sessionData.date = new Date().toISOString();
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(this.STORE_NAME, 'readwrite');
+                    tx.objectStore(this.STORE_NAME).add(sessionData);
+                    tx.oncomplete = () => resolve();
+                });
+            },
+            async deleteSession(id) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(this.STORE_NAME, 'readwrite');
+                    tx.objectStore(this.STORE_NAME).delete(id);
+                    tx.oncomplete = () => resolve();
+                });
+            },
+            async clearAll() {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction(this.STORE_NAME, 'readwrite');
+                    tx.objectStore(this.STORE_NAME).clear();
+                    tx.oncomplete = () => resolve();
+                });
+            },
+            async getStats() {
+                const sessions = await this.getSessions();
+                const totalMins = sessions.reduce((acc, curr) => acc + Math.round(curr.totalDuration / 60), 0);
+                return { count: sessions.length, totalMinutes: totalMins };
+            }
+        };
+
+        /*******************************************************
+         * MÓDULO 3: API de Hardware (Vibración y WakeLock)
+         *******************************************************/
+        const hardwareAPI = {
+            wakeLock: null,
+            async requestScreenLock() {
+                if ('wakeLock' in navigator && !this.wakeLock) {
+                    try { this.wakeLock = await navigator.wakeLock.request('screen'); } 
+                    catch (err) { console.warn('Wake Lock error:', err); }
+                }
+            },
+            releaseScreenLock() {
+                if (this.wakeLock !== null) {
+                    this.wakeLock.release().then(() => { this.wakeLock = null; });
+                }
+            },
+            vibrate(pattern) { if ('vibrate' in navigator) navigator.vibrate(pattern); }
+        };
+
+        /*******************************************************
+         * MÓDULO 3.5: Protección de Actividad (Anti-cierre)
+         *******************************************************/
+        const activityProtection = {
+            fullscreenEnabled: false,
+            
+            init() {
+                // Prevenir cierre accidental del navegador/pestaña durante entrenamiento
+                window.addEventListener('beforeunload', (e) => {
+                    if (App.state.isRunning && !App.state.isPaused) {
+                        e.preventDefault();
+                        e.returnValue = '¿Estás seguro de que quieres salir? Tu entrenamiento está en curso.';
+                        return e.returnValue;
+                    }
+                });
+
+                // Prevenir navegación hacia atrás durante entrenamiento
+                window.addEventListener('popstate', (e) => {
+                    if (App.state.isRunning) {
+                        e.preventDefault();
+                        window.history.pushState(null, '', window.location.href);
+                        if (!confirm('¿Deseas detener el entrenamiento y volver?')) {
+                            return;
+                        }
+                        App.finishTraining();
+                    }
+                });
+
+                // Agregar estado inicial al historial para capturar retrocesos
+                window.history.pushState(null, '', window.location.href);
+
+                // Mantener la pantalla siempre activa durante el entrenamiento
+                document.addEventListener('visibilitychange', async () => {
+                    if (document.visibilityState === 'visible' && App.state.isRunning && !App.state.isPaused) {
+                        // Re-adquirir wake lock cuando la app vuelve a primer plano
+                        await hardwareAPI.requestScreenLock();
+                        
+                        // Mostrar notificación de reactivación
+                        this.showReactivationNotification();
+                    }
+                });
+
+                // Detectar pérdida de foco y advertir
+                window.addEventListener('blur', () => {
+                    if (App.state.isRunning && !App.state.isPaused) {
+                        this.showBackgroundWarning();
+                    }
+                });
+
+                window.addEventListener('focus', () => {
+                    this.hideBackgroundWarning();
+                });
+
+                // Mantener pantalla completa persistente (si fue activada)
+                document.addEventListener('fullscreenchange', () => {
+                    if (!document.fullscreenElement && this.fullscreenEnabled && App.state.isRunning) {
+                        // Intentar reactivar pantalla completa si se salió accidentalmente
+                        setTimeout(() => {
+                            if (App.state.isRunning && !App.state.isPaused) {
+                                this.requestFullscreen();
+                            }
+                        }, 1000);
+                    }
+                });
+            },
+
+            async requestFullscreen() {
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                        this.fullscreenEnabled = true;
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        await document.documentElement.webkitRequestFullscreen();
+                        this.fullscreenEnabled = true;
+                    }
+                } catch (err) {
+                    console.warn('Fullscreen error:', err);
+                }
+            },
+
+            exitFullscreen() {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+                this.fullscreenEnabled = false;
+            },
+
+            showBackgroundWarning() {
+                let warning = document.getElementById('background-warning');
+                if (!warning) {
+                    warning = document.createElement('div');
+                    warning.id = 'background-warning';
+                    warning.className = 'fixed top-20 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-6 py-3 rounded-full shadow-2xl z-50 font-bold text-sm flex items-center gap-2';
+                    warning.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i><span>Entrenamiento en curso - Mantén la app abierta</span>';
+                    document.body.appendChild(warning);
+                    lucide.createIcons();
+                }
+                warning.style.display = 'flex';
+            },
+
+            hideBackgroundWarning() {
+                const warning = document.getElementById('background-warning');
+                if (warning) {
+                    warning.style.display = 'none';
+                }
+            },
+
+            showReactivationNotification() {
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-20 left-1/2 -translate-x-1/2 bg-run text-white px-6 py-3 rounded-full shadow-2xl z-50 font-bold text-sm flex items-center gap-2';
+                notification.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i><span>Entrenamiento activo</span>';
+                document.body.appendChild(notification);
+                lucide.createIcons();
+                
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    notification.style.transition = 'opacity 0.3s';
+                    setTimeout(() => notification.remove(), 300);
+                }, 2000);
+            }
+        };
+
+        /*******************************************************
+         * MÓDULO 4: Entrenador de Voz (Speech API + Audio Files)
+         *******************************************************/
+        const voiceCoach = {
+            synth: window.speechSynthesis,
+            enabled: true,
+            audioFiles: {
+                run: new Audio('correr.m4a'),
+                walk: new Audio('caminar.m4a')
+            },
+            init() {
+                if(this.synth) this.synth.getVoices();
+                // Precargar archivos de audio y establecer volumen máximo
+                this.audioFiles.run.preload = 'auto';
+                this.audioFiles.run.volume = 1.0;
+                this.audioFiles.walk.preload = 'auto';
+                this.audioFiles.walk.volume = 1.0;
+            },
+            speak(text) {
+                if (!this.synth || !this.enabled) return;
+                this.synth.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-ES';
+                const voices = this.synth.getVoices();
+                const esVoice = voices.find(v => v.lang.startsWith('es'));
+                if(esVoice) utterance.voice = esVoice;
+                this.synth.speak(utterance);
+            },
+            playAudio(phase) {
+                if (!this.enabled) return;
+                const audio = this.audioFiles[phase];
+                if (audio) {
+                    audio.volume = 1.0; // Volumen máximo
+                    audio.currentTime = 0; // Reiniciar al inicio
+                    audio.play().catch(err => console.warn('Error reproduciendo audio:', err));
+                }
+            },
+            announceStart() { this.speak("Bienvenido al entrenamiento Jeffy. Comenzamos con caminata."); },
+            announcePhase(phase, levelObj) {
+                // Usar archivos de audio en lugar de texto a voz
+                this.playAudio(phase);
+            },
+            announceEnd() { this.speak("Excelente trabajo. Has completado tu entrenamiento de hoy."); }
+        };
+
+        /*******************************************************
+         * MÓDULO 5: App Controller & Delta-Time Engine
+         *******************************************************/
+        const App = {
+            state: {
+                level: null,
+                targetMinutes: 0,
+                isRunning: false,
+                isPaused: false,
+                
+                // Nuevas variables para motor Delta-Time
+                timerWorker: null,
+                lastTickTime: 0,
+                accumulatedMs: 0,
+                phaseAccumulatedMs: 0,
+                
+                currentPhase: 'walk',
+                phaseSecondsLeft: 0,
+                totalSecondsElapsed: 0,
+                targetSecondsTotal: 0,
+                cycleCount: 1,
+                stats: { runTime: 0, walkTime: 0 }
+            },
+
+            LEVELS: {
+                beginner: { id: 'beginner', run: 60, walk: 60, name: 'Principiante', speedRun: 8, speedWalk: 5 },
+                intermediate: { id: 'intermediate', run: 180, walk: 60, name: 'Intermedio', speedRun: 10, speedWalk: 5 },
+                advanced: { id: 'advanced', run: 300, walk: 30, name: 'Avanzado', speedRun: 12, speedWalk: 6 }
+            },
+
+            DOM: {
+                views: {
+                    level: document.getElementById('view-level'), duration: document.getElementById('view-duration'),
+                    timer: document.getElementById('view-timer'), summary: document.getElementById('view-summary'),
+                    history: document.getElementById('view-history')
+                },
+                tTotalElapsed: document.getElementById('timer-total-elapsed'),
+                tTotalTarget: document.getElementById('timer-total-target'),
+                tCycleCount: document.getElementById('timer-cycle-count'),
+                tPhaseTime: document.getElementById('timer-phase-time'),
+                tPhaseText: document.getElementById('phase-text'),
+                tPhaseIcon: document.getElementById('phase-icon'),
+                tPhaseBg: document.getElementById('phase-indicator-bg'),
+                tSvgRing: document.getElementById('timer-svg-ring'),
+                tRemainingTime: document.getElementById('timer-remaining-time')
+            },
+
+            async init() {
+                lucide.createIcons();
+                pwaManager.init();
+                voiceCoach.init();
+                activityProtection.init();
+                await storageManager.init();
+                this.setupWebWorker();
+                this.bindEvents();
+                
+                // Re-adquisición automática de WakeLock (Recomendación QA)
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible' && this.state.isRunning && !this.state.isPaused) {
+                        hardwareAPI.requestScreenLock();
+                    }
+                });
+            },
+
+            setupWebWorker() {
+                // Web Worker generado en Blob para evitar throttling en background
+                const workerCode = `
+                    let timer;
+                    self.onmessage = function(e) {
+                        if (e.data === 'start') {
+                            timer = setInterval(() => self.postMessage('tick'), 250); // Resolución de 250ms
+                        } else if (e.data === 'stop') {
+                            clearInterval(timer);
+                        }
+                    };
+                `;
+                const workerBlob = new Blob([workerCode], {type: 'application/javascript'});
+                this.state.timerWorker = new Worker(URL.createObjectURL(workerBlob));
+                this.state.timerWorker.onmessage = () => this.tick();
+            },
+
+            bindEvents() {
+                // Navegación
+                document.getElementById('btn-nav-history').addEventListener('click', () => this.showHistory());
+                document.getElementById('btn-back-home').addEventListener('click', () => this.switchView('level'));
+                document.getElementById('btn-back-level').addEventListener('click', () => this.switchView('level'));
+                document.getElementById('btn-finish-home').addEventListener('click', () => { this.resetTimerState(); this.switchView('level'); });
+
+                // Pantalla completa
+                document.getElementById('btn-fullscreen').addEventListener('click', () => {
+                    if (!document.fullscreenElement) {
+                        activityProtection.requestFullscreen();
+                    } else {
+                        activityProtection.exitFullscreen();
+                    }
+                });
+
+                document.getElementById('btn-timer-fullscreen').addEventListener('click', () => {
+                    if (!document.fullscreenElement) {
+                        activityProtection.requestFullscreen();
+                    } else {
+                        activityProtection.exitFullscreen();
+                    }
+                });
+
+                // Actualizar icono de pantalla completa
+                document.addEventListener('fullscreenchange', () => {
+                    const icons = document.querySelectorAll('#fullscreen-icon, #btn-fullscreen i');
+                    icons.forEach(icon => {
+                        icon.setAttribute('data-lucide', document.fullscreenElement ? 'minimize' : 'maximize');
+                    });
+                    lucide.createIcons();
+                });
+
+                // Modal Personalizado
+                const modal = document.getElementById('modal-custom-time');
+                const btnCustom = document.getElementById('btn-custom-duration');
+                btnCustom.addEventListener('click', () => {
+                    modal.classList.remove('hidden');
+                    setTimeout(() => { modal.classList.remove('opacity-0'); modal.children[0].classList.remove('scale-95'); }, 10);
+                });
+                document.getElementById('btn-cancel-custom').addEventListener('click', () => {
+                    modal.classList.add('opacity-0'); modal.children[0].classList.add('scale-95');
+                    setTimeout(() => modal.classList.add('hidden'), 300);
+                });
+                document.getElementById('btn-confirm-custom').addEventListener('click', () => {
+                    const val = parseInt(document.getElementById('input-custom-time').value);
+                    if(val && val > 0) {
+                        this.state.targetMinutes = val;
+                        document.querySelectorAll('.duration-btn').forEach(b => { b.classList.remove('border-2', 'border-run'); b.querySelector('span:first-child').classList.replace('text-run', 'text-white'); });
+                        btnCustom.classList.add('border-2', 'border-run');
+                        document.getElementById('label-custom-dur').textContent = `${val} min`;
+                        document.getElementById('btn-cancel-custom').click();
+                    }
+                });
+
+                // Selección
+                document.querySelectorAll('.level-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.state.level = this.LEVELS[e.currentTarget.dataset.level];
+                        document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('border-run'));
+                        e.currentTarget.classList.add('border-run');
+                        setTimeout(() => this.switchView('duration'), 200);
+                    });
+                });
+
+                document.querySelectorAll('.duration-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.state.targetMinutes = parseInt(e.currentTarget.dataset.duration);
+                        document.querySelectorAll('.duration-btn').forEach(b => { b.classList.remove('border-2', 'border-run'); b.querySelector('span:first-child').classList.replace('text-run', 'text-white'); });
+                        btnCustom.classList.remove('border-2', 'border-run');
+                        e.currentTarget.classList.add('border-2', 'border-run');
+                        e.currentTarget.querySelector('span:first-child').classList.replace('text-white', 'text-run');
+                    });
+                });
+
+                document.getElementById('btn-start-training').addEventListener('click', () => {
+                    if(!this.state.level || this.state.targetMinutes <= 0) { alert("Selecciona nivel y duración."); return; }
+                    this.startTraining();
+                });
+
+                // Controles Timer
+                document.getElementById('btn-pause-training').addEventListener('click', () => this.togglePause());
+                document.getElementById('btn-stop-training').addEventListener('click', () => {
+                    if(confirm("¿Finalizar el entrenamiento ahora?")) this.finishTraining();
+                });
+
+                // Controles Historial
+                document.getElementById('btn-export-csv').addEventListener('click', () => this.exportToCSV());
+                document.getElementById('btn-delete-all').addEventListener('click', async () => {
+                    if(confirm("¿Eliminar TODO el historial? Esta acción no se puede deshacer.") && confirm("Confirmación final: ¿Borrar definitivamente?")) {
+                        await storageManager.clearAll();
+                        this.showHistory();
+                    }
+                });
+                document.getElementById('history-list').addEventListener('click', async (e) => {
+                    const deleteBtn = e.target.closest('.btn-delete-session');
+                    if(deleteBtn && confirm("¿Desea eliminar esta sesión?")) {
+                        await storageManager.deleteSession(parseInt(deleteBtn.dataset.id));
+                        this.showHistory();
+                    }
+                });
+            },
+
+            switchView(viewName) {
+                Object.values(this.DOM.views).forEach(v => { v.classList.remove('view-active'); v.classList.add('view-hidden'); });
+                this.DOM.views[viewName].classList.remove('view-hidden');
+                this.DOM.views[viewName].classList.add('view-active');
+            },
+
+            // --- MOTOR DELTA-TIME (Recomendación de QA) ---
+            startTraining() {
+                this.switchView('timer');
+                hardwareAPI.requestScreenLock();
+                
+                // Activar pantalla completa automáticamente al iniciar entrenamiento
+                if (!document.fullscreenElement) {
+                    activityProtection.requestFullscreen();
+                }
+                
+                this.state.targetSecondsTotal = this.state.targetMinutes * 60;
+                this.state.totalSecondsElapsed = 0;
+                this.state.accumulatedMs = 0;
+                this.state.phaseAccumulatedMs = 0;
+                this.state.cycleCount = 1;
+                this.state.stats = { runTime: 0, walkTime: 0 };
+                
+                this.state.currentPhase = 'walk';
+                this.state.phaseSecondsLeft = this.state.level.walk;
+                
+                this.updateTimerUI();
+                voiceCoach.announceStart();
+                hardwareAPI.vibrate([200, 100, 200]);
+
+                this.state.isRunning = true;
+                this.state.isPaused = false;
+                this.state.lastTickTime = Date.now();
+                this.state.timerWorker.postMessage('start');
+            },
+
+            tick() {
+                if(this.state.isPaused) return;
+
+                const now = Date.now();
+                const deltaMs = now - this.state.lastTickTime;
+                this.state.lastTickTime = now;
+
+                this.state.accumulatedMs += deltaMs;
+                this.state.phaseAccumulatedMs += deltaMs;
+
+                // Actualizar acumuladores de estadísticas según la fase
+                if(this.state.currentPhase === 'run') this.state.stats.runTime += deltaMs / 1000;
+                else this.state.stats.walkTime += deltaMs / 1000;
+
+                const currentSecondsElapsed = Math.floor(this.state.accumulatedMs / 1000);
+                
+                // Solo renderizar UI si ha pasado un segundo completo
+                if(currentSecondsElapsed > this.state.totalSecondsElapsed) {
+                    this.state.totalSecondsElapsed = currentSecondsElapsed;
+                    
+                    const phaseDurationMs = (this.state.currentPhase === 'run' ? this.state.level.run : this.state.level.walk) * 1000;
+                    this.state.phaseSecondsLeft = Math.ceil((phaseDurationMs - this.state.phaseAccumulatedMs) / 1000);
+
+                    // Fin de Entrenamiento
+                    if(this.state.totalSecondsElapsed >= this.state.targetSecondsTotal) {
+                        this.finishTraining();
+                        return;
+                    }
+
+                    // Cambio de Fase basado en Delta
+                    if(this.state.phaseAccumulatedMs >= phaseDurationMs) {
+                        this.switchPhase();
+                    }
+
+                    this.updateTimerUI();
+                }
+            },
+
+            switchPhase() {
+                this.state.phaseAccumulatedMs = 0; // Reiniciar contador de fase delta
+                
+                if(this.state.currentPhase === 'walk') {
+                    this.state.currentPhase = 'run';
+                    this.state.phaseSecondsLeft = this.state.level.run;
+                } else {
+                    this.state.currentPhase = 'walk';
+                    this.state.phaseSecondsLeft = this.state.level.walk;
+                    this.state.cycleCount++;
+                }
+                
+                hardwareAPI.vibrate([500, 200, 500]);
+                voiceCoach.announcePhase(this.state.currentPhase, this.state.level);
+                this.updateTimerUI();
+            },
+
+            togglePause() {
+                this.state.isPaused = !this.state.isPaused;
+                const iconContainer = document.getElementById('pause-icon');
+                
+                if(this.state.isPaused) {
+                    iconContainer.setAttribute('data-lucide', 'play');
+                    hardwareAPI.releaseScreenLock();
+                } else {
+                    iconContainer.setAttribute('data-lucide', 'pause');
+                    this.state.lastTickTime = Date.now(); // Resetear el anchor de delta-time
+                    hardwareAPI.requestScreenLock();
+                }
+                lucide.createIcons();
+            },
+
+            async finishTraining() {
+                this.state.timerWorker.postMessage('stop');
+                this.state.isRunning = false;
+                hardwareAPI.releaseScreenLock();
+                hardwareAPI.vibrate([1000, 500, 1000]);
+                voiceCoach.announceEnd();
+
+                // Cálculo VO2
+                const runSpeedMmin = (this.state.level.speedRun * 1000) / 60;
+                const walkSpeedMmin = (this.state.level.speedWalk * 1000) / 60;
+                const runVO2 = (0.2 * runSpeedMmin) + 3.5;
+                const walkVO2 = (0.1 * walkSpeedMmin) + 3.5;
+                
+                const totalTimeMins = this.state.totalSecondsElapsed / 60;
+                const runTimeMins = this.state.stats.runTime / 60;
+                const walkTimeMins = this.state.stats.walkTime / 60;
+                
+                let avgVO2 = totalTimeMins > 0 ? ((runTimeMins * runVO2) + (walkTimeMins * walkVO2)) / totalTimeMins : 0;
+
+                const sessionData = {
+                    levelName: this.state.level.name,
+                    targetMinutes: this.state.targetMinutes,
+                    totalDuration: this.state.totalSecondsElapsed,
+                    cycles: this.state.cycleCount,
+                    runTime: Math.round(this.state.stats.runTime),
+                    walkTime: Math.round(this.state.stats.walkTime),
+                    vo2: parseFloat(avgVO2.toFixed(1)),
+                    calories: Math.round(runTimeMins * 12 + walkTimeMins * 5)
+                };
+                
+                await storageManager.saveSession(sessionData);
+                this.showSummary(sessionData);
+            },
+
+            resetTimerState() {
+                if(this.state.timerWorker) this.state.timerWorker.postMessage('stop');
+                this.state.isRunning = false;
+                this.state.isPaused = false;
+                hardwareAPI.releaseScreenLock();
+            },
+
+            updateTimerUI() {
+                this.DOM.tTotalElapsed.textContent = this.formatTime(this.state.totalSecondsElapsed);
+                this.DOM.tTotalTarget.textContent = this.formatTime(this.state.targetSecondsTotal);
+                this.DOM.tCycleCount.textContent = this.state.cycleCount;
+                this.DOM.tPhaseTime.textContent = this.formatTime(Math.max(0, this.state.phaseSecondsLeft));
+                
+                // Actualizar tiempo restante total (descendente)
+                const remainingSeconds = Math.max(0, this.state.targetSecondsTotal - this.state.totalSecondsElapsed);
+                this.DOM.tRemainingTime.textContent = this.formatTime(remainingSeconds);
+
+                const isRun = this.state.currentPhase === 'run';
+                const colorClass = isRun ? 'text-run' : 'text-walk';
+                const bgClass = isRun ? 'bg-run' : 'bg-walk';
+                
+                this.DOM.tPhaseText.textContent = isRun ? 'CORRER' : 'CAMINAR';
+                this.DOM.tPhaseText.className = `text-3xl font-black uppercase tracking-widest mb-1 ${colorClass}`;
+                this.DOM.tPhaseBg.className = `absolute w-72 h-72 rounded-full opacity-10 animate-pulse-slow ${bgClass}`;
+                
+                if (this.DOM.tPhaseIcon.getAttribute('data-lucide') !== (isRun ? 'person-standing' : 'footprints')) {
+                    this.DOM.tPhaseIcon.setAttribute('data-lucide', isRun ? 'person-standing' : 'footprints');
+                    this.DOM.tPhaseIcon.className = `w-10 h-10 mb-2 ${colorClass}`;
+                    lucide.createIcons();
+                }
+
+                const totalPhaseTime = isRun ? this.state.level.run : this.state.level.walk;
+                const percentage = Math.max(0, this.state.phaseSecondsLeft) / totalPhaseTime;
+                const circumference = 339.292;
+                const offset = circumference - (percentage * circumference);
+                
+                this.DOM.tSvgRing.style.strokeDashoffset = offset;
+                this.DOM.tSvgRing.classList.remove('text-run', 'text-walk');
+                this.DOM.tSvgRing.classList.add(colorClass);
+            },
+
+            showSummary(data) {
+                document.getElementById('summary-total-time').textContent = this.formatTime(data.totalDuration);
+                document.getElementById('summary-cycles').textContent = data.cycles;
+                document.getElementById('summary-run-time').textContent = this.formatTime(data.runTime);
+                document.getElementById('summary-walk-time').textContent = this.formatTime(data.walkTime);
+                document.getElementById('summary-vo2').innerHTML = `${data.vo2} <span class="text-sm font-normal text-gray-400">ml/kg/min</span>`;
+                document.getElementById('summary-calories').innerHTML = `${data.calories} <span class="text-sm font-normal text-gray-400">kcal</span>`;
+                this.switchView('summary');
+            },
+
+            async showHistory() {
+                const sessions = await storageManager.getSessions();
+                const stats = await storageManager.getStats();
+                
+                document.getElementById('stat-total-sessions').textContent = stats.count;
+                document.getElementById('stat-total-minutes').textContent = stats.totalMinutes;
+
+                const listContainer = document.getElementById('history-list');
+                listContainer.innerHTML = '';
+
+                if(sessions.length === 0) {
+                    listContainer.innerHTML = `<div class="text-center text-gray-500 mt-10"><i data-lucide="calendar-x" class="w-12 h-12 mx-auto mb-3 opacity-50"></i><p>Aún no hay entrenamientos registrados.</p></div>`;
+                } else {
+                    sessions.forEach(s => {
+                        const date = new Date(s.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+                        const html = `
+                            <div class="bg-card rounded-2xl p-4 mb-3 flex flex-col border-l-4 border-run relative">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div><h3 class="font-bold text-lg">${s.levelName}</h3><p class="text-xs text-gray-400">${date} • ${s.cycles} ciclos</p></div>
+                                    <div class="text-right pr-8"><div class="text-xl font-bold text-white">${Math.floor(s.totalDuration/60)}<span class="text-sm text-gray-400">m</span></div></div>
+                                    <button class="btn-delete-session absolute right-4 top-4 text-gray-500 hover:text-red-500 transition" data-id="${s.id}" title="Eliminar"><i data-lucide="trash" class="w-5 h-5"></i></button>
+                                </div>
+                                <div class="flex gap-4 text-xs">
+                                    <span class="text-orange-400"><i data-lucide="flame" class="w-3 h-3 inline"></i> ${s.calories} kcal</span>
+                                    <span class="text-blue-400"><i data-lucide="wind" class="w-3 h-3 inline"></i> ${s.vo2 || 'N/A'} VO₂</span>
+                                </div>
+                            </div>
+                        `;
+                        listContainer.insertAdjacentHTML('beforeend', html);
+                    });
+                }
+                lucide.createIcons();
+                this.switchView('history');
+            },
+
+            async exportToCSV() {
+                const sessions = await storageManager.getSessions();
+                if(sessions.length === 0) return alert("No hay datos para exportar.");
+                
+                let csvContent = "data:text/csv;charset=utf-8,ID,Fecha,Nivel,Minutos_Objetivo,Duracion_Segundos,Ciclos,Tiempo_Corriendo,Tiempo_Caminando,Calorias,VO2\n";
+                sessions.forEach(s => {
+                    csvContent += [s.id, new Date(s.date).toLocaleString('es-ES'), s.levelName, s.targetMinutes, s.totalDuration, s.cycles, s.runTime, s.walkTime, s.calories, s.vo2 || 0].join(",") + "\n";
+                });
+                
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", "historial_jeffy.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+
+            formatTime(totalSeconds) {
+                return `${Math.floor(totalSeconds / 60).toString().padStart(2, '0')}:${(totalSeconds % 60).toString().padStart(2, '0')}`;
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => App.init());
+    </script>
+</body>
+</html>

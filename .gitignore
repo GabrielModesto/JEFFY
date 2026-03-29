@@ -1,0 +1,22 @@
+# Windows thumbnails
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# AI Agents
+.gemini/
+.agent/
+.kilocode/
+task.md
+
+# Web/Node
+node_modules/
+.env
+dist/
+build/
